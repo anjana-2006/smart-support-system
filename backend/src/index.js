@@ -3,6 +3,7 @@ import cors from 'cors'
 import helmet from 'helmet'
 import dotenv from 'dotenv'
 import authRoutes from './routes/auth.js'
+import requestRoutes from './routes/requests.js'
 
 dotenv.config()
 
@@ -17,6 +18,7 @@ res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
 app.use('/api/auth', authRoutes)
+app.use('/api/requests', requestRoutes)
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
