@@ -1,3 +1,6 @@
+// This is your Prisma schema file
+// Run: npx prisma migrate dev --name init
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,52 +11,112 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  password  String
-  role      Role      @default(USER)
-  createdAt DateTime  @default(now())
-  requests  Request[]
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         Role      @default(AGENT)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  notes        Note[]
+  events       RequestEvent[]
+
+  @@index([email])
 }
 
-model Request {
-  id          String   @id @default(uuid())
-  title       String
-  description String
-  status      Status   @default(PENDING)
-  priority    Priority @default(MEDIUM)
-  category    String?
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  notes       Note[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+enum Role {
+  ADMIN
+  AGENT
+}
+
+model CustomerRequest {
+  id               String    @id @default(uuid())
+  message          String
+  customerName     String
+  customerEmail    String?
+  sourceChannel    Channel   @default(API)
+  status           Status    @default(NEW)
+  categorySnapshot String?
+  prioritySnapshot String?
+  idempotencyKey   String?   @unique
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  classification   AiClassification?
+  notes            Note[]
+  events           RequestEvent[]
+
+  @@index([status])
+  @@index([categorySnapshot])
+  @@index([prioritySnapshot])
+  @@index([createdAt])
+}
+
+enum Channel {
+  API
+  WEBHOOK
+  WHATSAPP
+  EMAIL
+  WEBSITE
+}
+
+enum Status {
+  NEW
+  QUEUED
+  PROCESSING
+  CLASSIFIED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  FAILED
+}
+
+model AiClassification {
+  id         String   @id @default(uuid())
+  requestId  String   @unique
+  provider   String   @default("mock")
+  category   String?
+  priority   String?
+  summary    String?
+  confidence Float?
+  reason     String?
+  rawOutput  Json?
+  errorState String?
+  retryCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  request    CustomerRequest @relation(fields: [requestId], references: [id])
+
+  @@index([requestId])
+}
+
+model RequestEvent {
+  id        String   @id @default(uuid())
+  requestId String
+  eventType String
+  oldValue  String?
+  newValue  String?
+  actorId   String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  request   CustomerRequest @relation(fields: [requestId], references: [id])
+  actor     User?           @relation(fields: [actorId], references: [id])
+
+  @@index([requestId])
 }
 
 model Note {
   id        String   @id @default(uuid())
-  content   String
   requestId String
-  request   Request  @relation(fields: [requestId], references: [id])
+  authorId  String
+  body      String
   createdAt DateTime @default(now())
-}
 
-enum Role {
-  USER
-  AGENT
-  ADMIN
-}
+  request   CustomerRequest @relation(fields: [requestId], references: [id])
+  author    User            @relation(fields: [authorId], references: [id])
 
-enum Status {
-  PENDING
-  PROCESSING
-  RESOLVED
-  CLOSED
-}
-
-enum Priority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
+  @@index([requestId])
 }

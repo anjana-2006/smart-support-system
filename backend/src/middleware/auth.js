@@ -1,26 +1,20 @@
-import express from 'express'
-import cors from 'cors'
-import helmet from 'helmet'
-import dotenv from 'dotenv'
-import authRoutes from './routes/auth.js'
+import jwt from 'jsonwebtoken'
 
-dotenv.config()
+export function authenticateToken(req, res, next) {
+const authHeader = req.headers['authorization']
+const token = authHeader && authHeader.split(' ')[1]
+if (!token) return res.status(401).json({ error: 'Access token required' })
 
-const app = express()
+try {
+const user = jwt.verify(token, process.env.JWT_SECRET)
+req.user = user
+next()
+} catch {
+return res.status(403).json({ error: 'Invalid or expired token' })
+}
+}
 
-app.use(helmet())
-app.use(cors())
-app.use(express.json())
-
-app.get('/health', (req, res) => {
-res.json({ status: 'ok', timestamp: new Date().toISOString() })
-})
-
-app.use('/api/auth', authRoutes)
-
-const PORT = process.env.PORT || 3000
-app.listen(PORT, () => {
-console.log(`🚀 Server running on port ${PORT}`)
-})
-
-export default app
+export function requireAdmin(req, res, next) {
+if (req.user?.role !== 'ADMIN') return res.status(403).json({ error: 'Admin access required' })
+next()
+}
